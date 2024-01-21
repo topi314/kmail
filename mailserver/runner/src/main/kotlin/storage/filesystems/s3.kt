@@ -97,12 +97,6 @@ class S3Attributes(val folder: S3Folder) : Attributes, S3Context by folder {
     }
 }
 
-private const val ALLOWED_S3_CHARACTERS = "/"
-
-private fun String.escape(): String {
-    return UrlEncoderUtil.encode(this, ALLOWED_S3_CHARACTERS)
-}
-
 private fun String.unescape(): String {
     return UrlEncoderUtil.decode(this)
 
@@ -120,7 +114,7 @@ class S3Folder(val fileSystem: S3FileSystem, val folderKey: Key): Attributable, 
     override suspend fun createFolder(name: String): S3Folder {
         client.putObject {
             bucket = config.bucket.name
-            this.key = "$folderKey$name/".escape()
+            this.key = "$folderKey$name/"
         }
 
         return S3Folder(fileSystem, folderKey.append(name))
@@ -129,7 +123,7 @@ class S3Folder(val fileSystem: S3FileSystem, val folderKey: Key): Attributable, 
     override suspend fun getFile(name: String): FsFile {
         val obj = client.headObject {
             this.bucket = config.bucket.name
-            this.key = "$folderKey$name".escape()
+            this.key = "$folderKey$name"
         }
 
         return FsFile(name, obj.contentLength)
@@ -140,7 +134,7 @@ class S3Folder(val fileSystem: S3FileSystem, val folderKey: Key): Attributable, 
         return client.listObjectsV2 {
             bucket = config.bucket.name
             this.delimiter = "/"
-            this.prefix = folderKey.toString().escape()
+            this.prefix = folderKey.toString()
         }.contents.orEmpty()
             .filter { it.isFolder() }
             .map { S3Folder(fileSystem, folderKey.append(it.key!!.split('/').last().unescape())) }
@@ -154,7 +148,7 @@ class S3Folder(val fileSystem: S3FileSystem, val folderKey: Key): Attributable, 
         return client.listObjectsV2 {
             bucket = config.bucket.name
             this.delimiter = "/"
-            this.prefix = folderKey.toString().escape()
+            this.prefix = folderKey.toString()
         }.contents.orEmpty().filterNot { it.isNotAcceptableFile() }.map { FsFile(it.key!!.split('/').last(), it.size) }
     }
 
@@ -165,7 +159,7 @@ class S3Folder(val fileSystem: S3FileSystem, val folderKey: Key): Attributable, 
     override suspend fun readFile(name: String): ByteArray? {
         val request = GetObjectRequest {
             this.bucket = config.bucket.name
-            this.key = "$folderKey$name".escape()
+            this.key = "$folderKey$name"
         }
 
         return try {
@@ -178,7 +172,7 @@ class S3Folder(val fileSystem: S3FileSystem, val folderKey: Key): Attributable, 
     override suspend fun writeFile(name: String, contents: ByteArray): FsFile {
         client.putObject {
             bucket = config.bucket.name
-            key = "$folderKey$name".escape()
+            key = "$folderKey$name"
             body = ByteStream.fromBytes(contents)
         }
 
@@ -190,26 +184,26 @@ class S3Folder(val fileSystem: S3FileSystem, val folderKey: Key): Attributable, 
 
         client.copyObject {
             bucket = config.bucket.name
-            key = "${folder.folderKey}$file".escape()
-            copySource = "/${config.bucket.name}/$folderKey$file".escape()
+            key = "${folder.folderKey}$file"
+            copySource = "/${config.bucket.name}/$folderKey$file"
         }
 
         client.deleteObject {
             bucket = config.bucket.name
-            this.key = "$folderKey$file".escape()
+            this.key = "$folderKey$file"
         }
     }
 
     override suspend fun rename(from: String, to: String) {
         client.copyObject {
             bucket = config.bucket.name
-            key = "$folderKey$to".escape()
-            copySource = "/${config.bucket.name}/$folderKey$from".escape()
+            key = "$folderKey$to"
+            copySource = "/${config.bucket.name}/$folderKey$from"
         }
 
         client.deleteObject {
             bucket = config.bucket.name
-            this.key = "$folderKey$from".escape()
+            this.key = "$folderKey$from"
         }
     }
 }
